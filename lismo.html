@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8" />
+    <title>LWS GAME</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #tela-inicial, #transicao {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background-color: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        #gif-intro, #gif-transicao {
+            max-width: 80%;
+            height: auto;
+        }
+
+        #transicao {
+            display: none;
+            z-index: 15;
+        }
+
+        #sala-container {
+            position: relative;
+            width: 640px;
+            height: 640px;
+            overflow: hidden;
+            background-image: url('slis.png.png');
+            background-size: auto;
+            background-position: center;
+        }
+
+        #boneca {
+            position: absolute;
+            width: 110px;
+            transition: all 0.2s;
+            z-index: 2;
+            left: 50px;
+            bottom: 50px;
+        }
+
+        /* REMOVIDO: Estilos para #casinha e #casinha-final */
+
+        #botao-reiniciar {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 20;
+        }
+
+        #quarto {
+            position: relative;
+            width: 640px;
+            height: 640px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="tela-inicial">
+    <img src="papy.gif" alt="Intro do jogo" id="gif-intro" />
+</div>
+
+<div id="transicao">
+    <img src="" alt="Transição" id="gif-transicao" />
+</div>
+
+<div id="sala-container">
+    <img id="boneca" src="lisparada.png" alt="Boneca" />
+</div>
+
+<button id="botao-reiniciar">Reiniciar</button>
+<audio id="musica" src="Evanescence_-_Imaginary_8-Bit.mp3" loop></audio>
+
+<script>
+    const sala = document.getElementById('sala-container');
+    const boneca = document.getElementById('boneca');
+    // REMOVIDO: const casinha = document.getElementById('casinha');
+    // REMOVIDO: const casinhaFinal = document.getElementById('casinha-final');
+    const telaInicial = document.getElementById('tela-inicial');
+    const botaoReiniciar = document.getElementById('botao-reiniciar');
+    const musica = document.getElementById('musica');
+    const transicao = document.getElementById('transicao');
+    const gifTransicao = document.getElementById('gif-transicao');
+
+    let x = 100;
+    let y = 400;
+
+    let passo = 0;
+    let noCorredor = false;
+    let noQuartoFinal = false;
+
+    let limites = {
+        sala: {minX: 80, maxX: 550, minY: 0, maxY: 400},
+        corredor: {minX: 0, maxX: 500, minY: 200, maxY: 300},
+        quarto: {minX: 50, maxX: 590, minY: 50, maxY: 350}
+    };
+
+    let comodoAtual = 'sala';
+
+    const gifsTransicao = [
+        'undertale_text_box.gif',
+        'undertale_text_box (1).gif',
+        'undertale_text_box (2).gif', 'undertale_text_box (3).gif','undertale_text_box (4).gif'
+    ];
+
+    const gifsQuartoTransicao = [
+        'quarto_1.gif',
+        'quarto_2.gif',
+        'quarto_3.gif',
+        'quarto_4.gif'
+    ];
+
+    const gifsFinais = [
+        'superball_gif_1.gif',
+        'superball_gif_2.gif',
+        'superball_gif_3.gif', 'pfinal.gif', 'superball_gif_4.gif',
+    ];
+
+    const sprites = {
+        cima: ['lisparadacostas.png'],
+        baixo: ['lisparada.png', 'lisfrente1.png', 'lisfrente2.png'],
+        esquerda: ['lisesquerdaparada.png', 'lisesqueda1.png'],
+        direita: ['lisdireitaparada.png', 'lisdireita1.png']
+    };
+
+    const pokebolas = [];
+    const posicoesPokebolas = {
+        sala: [
+            {left: 20, bottom: 150, gifs: ['poke1_1.gif', 'poke1_2.gif', 'poke1_3.gif', 'poke1_5.gif', 'poke1_6.gif', 'poke1_4.gif', 'poke1_7.gif']},
+            {left: 550, bottom: 400, gifs: ['poke2_1.gif','poke2_2.gif','poke2_3.gif']},
+            {left: 530, bottom: 100, gifs: ['p3_1.gif','p3_2.gif','horse.jpg','p3_3.gif']}
+        ],
+        corredor: [
+            {left: 200, bottom: 250, gifs: ['p4_1 (1).gif','POKE4_2.gif','poke4_3.gif']},
+            {left: 100, bottom: 180, gifs: ['p5_1.gif','p5_2.gif','p5_3.gif','p5_4.gif','p5_5.gif','p5_6.gif']},
+            {left: 500, bottom: 260, gifs: ['P6_1.gif']}
+        ],
+        quarto: [
+            {left: 200, bottom: 400, gifs: ['p8_1.gif']},
+            {left: 530, bottom: 200, gifs: ['p7_1.gif','P7_2.gif','P7_3.gif','p7_4.gif','p7_5.gif']},
+            {left: 300, bottom: 110, gifs: ['snorlax.gif']}
+        ]
+    };
+    const superballPos = {left: 400, bottom: 130}
+
+    function criarPokebolas() {
+        pokebolas.forEach(p => p.element.remove());
+        pokebolas.length = 0;
+
+        if (posicoesPokebolas[comodoAtual]) {
+            posicoesPokebolas[comodoAtual].forEach(({left, bottom, gifs}) => {
+                const img = document.createElement('img');
+                img.src = 'pokebola.png';
+                img.style.position = 'absolute';
+                img.style.width = '70px';
+                img.style.left = left + 'px';
+                img.style.bottom = bottom + 'px';
+                img.style.cursor = 'pointer';
+                img.style.zIndex = '2';
+                sala.appendChild(img);
+
+                img.addEventListener('click', () => {
+                    mostrarMensagemGif(gifs);
+                });
+
+                pokebolas.push({element: img});
+            });
+        }
+
+        if (comodoAtual === 'quarto') {
+            const superball = document.createElement('img');
+            superball.src = 'superball.png';
+            superball.style.position = 'absolute';
+            superball.style.width = '50px';
+            superball.style.left = superballPos.left + 'px';
+            superball.style.bottom = superballPos.bottom + 'px';
+            superball.style.cursor = 'pointer';
+            superball.style.zIndex = '3';
+            sala.appendChild(superball);
+
+            superball.addEventListener('click', () => {
+                mostrarTelaFinal();
+            });
+
+            pokebolas.push({element: superball});
+        }
+    }
+
+    function mostrarMensagemGif(gifs) {
+        document.removeEventListener('keydown', moverBoneca);
+        transicao.style.display = 'flex';
+        let index = 0;
+        const duracaoGif = 3800;
+
+        function mostrarProximoGifPokebola() {
+            if (index < gifs.length) {
+                gifTransicao.src = gifs[index];
+                index++;
+                setTimeout(mostrarProximoGifPokebola, duracaoGif);
+            } else {
+                transicao.style.display = 'none';
+                gifTransicao.src = '';
+                document.addEventListener('keydown', moverBoneca);
+            }
+        }
+        mostrarProximoGifPokebola();
+    }
+
+    function colisao(xProx, yProx) {
+        return false;
+    }
+
+    function moverBoneca(e) {
+        const passoPixel = 20;
+        let direcao = '';
+        let novoX = x;
+        let novoY = y;
+
+        if (e.key === 'ArrowRight') {
+            novoX += passoPixel;
+            direcao = 'direita';
+        }
+        if (e.key === 'ArrowLeft') {
+            novoX -= passoPixel;
+            direcao = 'esquerda';
+        }
+        if (e.key === 'ArrowUp') {
+            novoY += passoPixel;
+            direcao = 'cima';
+        }
+        if (e.key === 'ArrowDown') {
+            novoY -= passoPixel;
+            direcao = 'baixo';
+        }
+
+        if (novoX < limites[comodoAtual].minX) novoX = limites[comodoAtual].minX;
+        if (novoX > limites[comodoAtual].maxX) novoX = limites[comodoAtual].maxX;
+        if (novoY < limites[comodoAtual].minY) novoY = limites[comodoAtual].minY;
+        if (novoY > limites[comodoAtual].maxY) novoY = limites[comodoAtual].maxY;
+
+        x = novoX;
+        y = novoY;
+        boneca.src = sprites[direcao][passo % sprites[direcao].length];
+        boneca.style.left = x + 'px';
+        boneca.style.bottom = y + 'px';
+        passo++;
+
+        // As condições de transição permanecem as mesmas, baseadas apenas nas coordenadas da boneca
+        if (!noCorredor && x + 40 >= 590 && y + 20 >= 225 && y + 20 <= 325) {
+            iniciarTransicaoParaCorredor();
+        }
+
+        if (
+            noCorredor &&
+            !noQuartoFinal && x + 40 >= 280 && x + 40 <= 320 && y + 20 >= 180 && y + 20 <= 220) {
+            iniciarTransicaoParaQuartoFinal();
+        }
+    }
+
+    function iniciarTransicaoParaCorredor() {
+        noCorredor = true;
+        comodoAtual = 'corredor';
+        document.removeEventListener('keydown', moverBoneca);
+        transicao.style.display = 'flex';
+        let index = 0;
+        const duracaoTransicao = 2000;
+
+        function mostrarProximoGif() {
+            if (index < gifsTransicao.length) {
+                gifTransicao.src = gifsTransicao[index];
+                index++;
+                setTimeout(mostrarProximoGif, duracaoTransicao);
+            } else {
+                transicao.style.display = 'none';
+                sala.style.backgroundImage = "url('corredor.png')";
+                // REMOVIDO: casinha.style.display = 'none';
+                // REMOVIDO: casinhaFinal.style.display = 'block';
+
+                x = 0;
+                y = 250;
+                boneca.style.left = x + 'px';
+                boneca.style.bottom = y + 'px';
+
+                criarPokebolas();
+                document.addEventListener('keydown', moverBoneca);
+            }
+        }
+        mostrarProximoGif();
+    }
+
+    function iniciarTransicaoParaQuartoFinal() {
+        noQuartoFinal = true;
+        comodoAtual = 'quarto';
+        document.removeEventListener('keydown', moverBoneca);
+        transicao.style.display = 'flex';
+        let index = 0;
+        const duracaoQuartoTransicao = 3000;
+
+        function mostrarProximoQuartoGif() {
+            if (index < gifsQuartoTransicao.length) {
+                gifTransicao.src = gifsQuartoTransicao[index];
+                index++;
+                setTimeout(mostrarProximoQuartoGif, duracaoQuartoTransicao);
+            } else {
+                transicao.style.display = 'none';
+                sala.style.backgroundImage = "url('quarto.png')";
+                // REMOVIDO: casinhaFinal.style.display = 'none';
+
+                x = 450;
+                y = 370;
+                boneca.style.left = x + 'px';
+                boneca.style.bottom = y + 'px';
+
+                criarPokebolas();
+                document.addEventListener('keydown', moverBoneca);
+            }
+        }
+        mostrarProximoQuartoGif();
+    }
+
+    function mostrarTelaFinal() {
+        document.removeEventListener('keydown', moverBoneca);
+        pokebolas.forEach(p => p.element.remove());
+        transicao.style.display = 'flex';
+
+        let indexGif = 0;
+        const duracaoFinalGif = 4000;
+
+        function mostrarGifsFinais() {
+            if (indexGif < gifsFinais.length) {
+                gifTransicao.src = gifsFinais[indexGif];
+                indexGif++;
+                setTimeout(mostrarGifsFinais, duracaoFinalGif);
+            } else {
+                gifTransicao.src = '';
+                transicao.style.display = 'none';
+                botaoReiniciar.style.display = 'block';
+                alert('CORRE PRO QUARTO MÔ');
+            }
+        }
+
+        mostrarGifsFinais();
+    }
+
+    botaoReiniciar.addEventListener('click', () => {
+        window.location.reload();
+    });
+
+    musica.volume = 0.2;
+
+    let musicaIniciada = false;
+
+    setTimeout(() => {
+        telaInicial.style.display = 'none';
+        boneca.style.left = x + 'px';
+        boneca.style.bottom = y + 'px';
+        criarPokebolas();
+        document.addEventListener('keydown', moverBoneca);
+    }, 4000);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !musicaIniciada) {
+            musica.play()
+                .then(() => {
+                    musicaIniciada = true;
+                    console.log('Música iniciada com sucesso!');
+                })
+                .catch(error => {
+                    console.error('Erro ao tentar tocar a música:', error);
+                });
+        }
+    });
+
+</script>
+
+</body>
+</html>
